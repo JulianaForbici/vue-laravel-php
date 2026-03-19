@@ -21,16 +21,6 @@ class TaskController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return Inertia::render('Dashboard', [
-            'task' => null,
-        ]);
-    }
-
-    /**
      * Store a newly created resource in storage.
      */
      public function store(Request $request)
@@ -50,19 +40,7 @@ class TaskController extends Controller
 
         auth()->user()->tasks()->create($validated);
 
-        return redirect('/')->with('success', 'Tarefa criada com sucesso!');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Task $task)
-    {
-        $this->authorize('view', $task);
-
-        return Inertia::render('Dashboard', [
-            'task' => $task,
-        ]);
+        return to_route('dashboard')->with('success', 'Tarefa criada com sucesso!');
     }
 
     /**
@@ -72,7 +50,7 @@ class TaskController extends Controller
     {
         $this->authorize('update', $task);
 
-        return Inertia::render('Tasks/Edit', [
+        return Inertia::render('tasks/Edit', [
             'task' => $task,
         ]);
     }
@@ -99,7 +77,7 @@ class TaskController extends Controller
 
         $task->update($validated);
 
-        return redirect('/')->with('success', 'Tarefa atualizada com sucesso!');
+        return to_route('dashboard')->with('success', 'Tarefa atualizada com sucesso!');
     }
 
     /**
@@ -111,6 +89,6 @@ class TaskController extends Controller
 
         $task->delete();
 
-        return redirect('/')->with('success', 'Tarefa excluída com sucesso!');
+        return to_route('dashboard')->with('success', 'Tarefa excluída com sucesso!');
     }
 }
