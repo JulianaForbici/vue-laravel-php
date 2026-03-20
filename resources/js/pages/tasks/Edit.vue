@@ -1,7 +1,22 @@
 <script setup lang="ts">
+import Button from '@/components/ui/button/Button.vue';
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
 import type { BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/vue3';
+import axios from 'axios';
+import { Loader2 } from 'lucide-vue-next';
+import { useForm, Field as VeeField } from 'vee-validate';
+
+// const taskSchema = z.object({
+//     title: z.string().max(120, 'O título é obrigatório e deve contar no máximo 120 caracteres.'),
+//     description: z.string().nullable(),
+//     status: z.enum(['todo', 'doing', 'done']),
+//     due_date: z.string().nullable(),
+// });
 
 type TaskStatus = 'todo' | 'doing' | 'done';
 
@@ -24,112 +39,97 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Editar tarefa', href: `/tasks/${props.task.id}/edit` },
 ];
 
-const form = useForm({
-    title: props.task.title ?? '',
-    description: props.task.description ?? '',
-    status: props.task.status,
-    due_date: props.task.due_date ? String(props.task.due_date).slice(0, 10) : '',
+const formContext = useForm({
+    initialValues: {
+        title: props.task.title ?? '',
+        description: props.task.description ?? '',
+        status: props.task.status,
+        due_date: props.task.due_date ? String(props.task.due_date).slice(0, 10) : '',
+    },
+    // validationSchema: toTypedSchema(taskSchema),
 });
 
-function submit() {
-    form.put(`/tasks/${props.task.id}`);
-}
+const onSubmit = formContext.handleSubmit(async (data) => {
+    await axios.put(`/tasks/${props.task.id}`, data);
+
+    console.log(JSON.stringify(data, null, 2));
+});
 </script>
 
 <template>
-    <Head title="Editar tarefa" />
+    <Head title="Editar tarefa"></Head>
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="max-w-2xl mx-auto px-4 py-8">
+    <AppLayout :breadcrumbs="[]">
+        <div class="mx-auto max-w-2xl px-4 py-8">
             <h1 class="text-3xl font-bold">Editar tarefa</h1>
 
-            <div class="card bg-base-100 shadow mt-8">
+            <div class="card bg-base-100 mt-8 shadow">
                 <div class="card-body">
-                    <form @submit.prevent="submit">
-                        <div class="form-control w-full mb-4">
-                            <label class="label">
-                                <span class="label-text font-medium">Título</span>
-                            </label>
-                            <input
-                                v-model="form.title"
-                                type="text"
-                                maxlength="120"
-                                required
-                                class="input input-bordered w-full"
-                                :class="{ 'input-error': form.errors.title }"
-                            />
-                            <div v-if="form.errors.title" class="label">
-                                <span class="label-text-alt text-error">
-                                    {{ form.errors.title }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="form-control w-full mb-4">
-                            <label class="label">
-                                <span class="label-text font-medium">Descrição</span>
-                            </label>
-                            <textarea
-                                v-model="form.description"
-                                rows="4"
-                                class="textarea textarea-bordered w-full resize-none"
-                                :class="{ 'textarea-error': form.errors.description }"
-                            />
-                            <div v-if="form.errors.description" class="label">
-                                <span class="label-text-alt text-error">
-                                    {{ form.errors.description }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="form-control w-full">
-                                <label class="label">
-                                    <span class="label-text font-medium">Status</span>
-                                </label>
-                                <select
-                                    v-model="form.status"
-                                    class="select select-bordered w-full"
-                                    :class="{ 'select-error': form.errors.status }"
-                                >
-                                    <option value="todo">To do</option>
-                                    <option value="doing">Doing</option>
-                                    <option value="done">Done</option>
-                                </select>
-                                <div v-if="form.errors.status" class="label">
-                                    <span class="label-text-alt text-error">
-                                        {{ form.errors.status }}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div class="form-control w-full">
-                                <label class="label">
-                                    <span class="label-text font-medium">Prazo</span>
-                                </label>
-                                <input
-                                    v-model="form.due_date"
-                                    type="date"
-                                    class="input input-bordered w-full"
-                                    :class="{ 'input-error': form.errors.due_date }"
+                    <form @submit="onSubmit">
+                        <VeeField v-slot="{ field, errors }" name="title">
+                            <Field :data-invalid="!!errors.length">
+                                <FieldLabel for="title"> More about you </FieldLabel>
+                                <Input
+                                    id="title"
+                                    v-model="field.value"
+                                    @update:model-value="field.onChange"
+                                    :aria-invalid="!!errors.length"
+                                    placeholder="shadcn"
+                                    autocomplete="username"
                                 />
-                                <div v-if="form.errors.due_date" class="label">
-                                    <span class="label-text-alt text-error">
-                                        {{ form.errors.due_date }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                                <FieldDescription>
+                                    Tell us more about yourself. This will be used to help us personalize your experience.
+                                </FieldDescription>
+                                <FieldError v-if="errors.length" :errors="errors" />
+                            </Field>
+                        </VeeField>
 
-                        <div class="card-actions justify-between mt-6">
-                            <Link href="/dashboard" class="btn btn-ghost btn-sm">
-                                Cancelar
-                            </Link>
+                        <VeeField v-slot="{ field, errors }" name="description">
+                            <Field :data-invalid="!!errors.length">
+                                <FieldLabel for="description"> More about you </FieldLabel>
 
-                            <button type="submit" class="btn btn-primary btn-sm" :disabled="form.processing">
-                                {{ form.processing ? 'Atualizando...' : 'Atualizar tarefa' }}
-                            </button>
-                        </div>
+                                <Textarea
+                                    id="description"
+                                    v-model="field.value"
+                                    @update:model-value="field.onChange"
+                                    placeholder="I'm a software engineer..."
+                                    class="min-h-[120px]"
+                                    :aria-invalid="!!errors.length"
+                                >
+                                </Textarea>
+                                <FieldDescription>
+                                    Tell us more about yourself. This will be used to help us personalize your experience.
+                                </FieldDescription>
+                                <FieldError v-if="errors.length" :errors="errors" />
+                            </Field>
+                        </VeeField>
+
+                        <VeeField v-slot="{ field, errors }" name="status">
+                            <Field orientation="responsive" :data-invalid="!!errors.length">
+                                <FieldContent>
+                                    <FieldLabel for="status"> Task Status</FieldLabel>
+                                    <FieldError v-if="errors.length" :errors="errors" />
+                                </FieldContent>
+                                <Select :model-value="field.value" @update:model-value="field.onChange" @blur="field.onBlur">
+                                    <SelectTrigger id="status" class="min-w-[120px]" :aria-invalid="!!errors.length">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent position="item-aligned">
+                                        <SelectItem value="todo"> Todo </SelectItem>
+                                        <SelectItem value="doing"> Doing </SelectItem>
+                                        <SelectItem value="done"> Done </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </Field>
+                        </VeeField>
+
+                        <Button type="submit" :disabled="formContext.isSubmitting.value" class="min-w-25">
+                            <template v-if="formContext.isSubmitting.value">
+                                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                                Salvando...
+                            </template>
+                            <template v-else> Salvar </template>
+                        </Button>
                     </form>
                 </div>
             </div>
