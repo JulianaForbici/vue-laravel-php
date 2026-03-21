@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import Button from '@/components/ui/button/Button.vue';
-import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Calendar } from '@/components/ui/calendar';
+import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
+import type { DateValue } from '@internationalized/date';
+import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
 import axios from 'axios';
-import { Loader2 } from 'lucide-vue-next';
+import { CalendarIcon, Loader2 } from 'lucide-vue-next';
 import { useForm, Field as VeeField } from 'vee-validate';
+import { ref, type Ref } from 'vue';
 
 // const taskSchema = z.object({
 //     title: z.string().max(120, 'O título é obrigatório e deve contar no máximo 120 caracteres.'),
@@ -53,6 +59,14 @@ const onSubmit = formContext.handleSubmit(async (data) => {
     await axios.put(`/tasks/${props.task.id}`, data);
 
     console.log(JSON.stringify(data, null, 2));
+});
+
+const defaultPlaceholder = today(getLocalTimeZone());
+
+const date = ref() as Ref<DateValue>;
+
+const df = new DateFormatter('en-US', {
+    dateStyle: 'long',
 });
 </script>
 
@@ -122,6 +136,28 @@ const onSubmit = formContext.handleSubmit(async (data) => {
                                 </Select>
                             </Field>
                         </VeeField>
+
+                        <Popover v-slot="{ close }">
+                            <PopoverTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    :class="cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')"
+                                >
+                                    <CalendarIcon />
+                                    {{ date ? df.format(date.toDate(getLocalTimeZone())) : 'Pick a date' }}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent class="w-auto p-0" align="start">
+                                <Calendar
+                                    v-model="date"
+                                    :default-placeholder="defaultPlaceholder"
+                                    layout="month-and-year"
+                                    initial-focus
+                                    @update:model-value="close"
+                                />
+                            </PopoverContent>
+                        </Popover>
 
                         <Button type="submit" :disabled="formContext.isSubmitting.value" class="min-w-25">
                             <template v-if="formContext.isSubmitting.value">
