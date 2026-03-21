@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Button from '@/components/ui/button/Button.vue';
 import { Calendar } from '@/components/ui/calendar';
-import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,11 +11,11 @@ import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import type { DateValue } from '@internationalized/date';
-import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
+import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date';
 import axios from 'axios';
 import { CalendarIcon, Loader2 } from 'lucide-vue-next';
 import { useForm, Field as VeeField } from 'vee-validate';
-import { ref, type Ref } from 'vue';
+import { ref } from 'vue';
 
 // const taskSchema = z.object({
 //     title: z.string().max(120, 'O título é obrigatório e deve contar no máximo 120 caracteres.'),
@@ -63,11 +63,20 @@ const onSubmit = formContext.handleSubmit(async (data) => {
 
 const defaultPlaceholder = today(getLocalTimeZone());
 
-const date = ref() as Ref<DateValue>;
+const date = ref<DateValue | undefined>(
+    props.task.due_date ? parseDate(String(props.task.due_date).slice(0, 10)) : undefined,
+);
+    const popoverOpen = ref(false);
 
 const df = new DateFormatter('en-US', {
     dateStyle: 'long',
 });
+
+function handleDateSelect(value: DateValue | undefined) {
+    date.value = value;
+    formContext.setFieldValue('due_date', value ? value.toString() : '');
+    popoverOpen.value = false;
+}
 </script>
 
 <template>
@@ -82,7 +91,7 @@ const df = new DateFormatter('en-US', {
                     <form @submit="onSubmit">
                         <VeeField v-slot="{ field, errors }" name="title">
                             <Field :data-invalid="!!errors.length">
-                                <FieldLabel for="title"> More about you </FieldLabel>
+                                <FieldLabel for="title"> Título </FieldLabel>
                                 <Input
                                     id="title"
                                     v-model="field.value"
@@ -91,16 +100,13 @@ const df = new DateFormatter('en-US', {
                                     placeholder="shadcn"
                                     autocomplete="username"
                                 />
-                                <FieldDescription>
-                                    Tell us more about yourself. This will be used to help us personalize your experience.
-                                </FieldDescription>
                                 <FieldError v-if="errors.length" :errors="errors" />
                             </Field>
                         </VeeField>
 
                         <VeeField v-slot="{ field, errors }" name="description">
                             <Field :data-invalid="!!errors.length">
-                                <FieldLabel for="description"> More about you </FieldLabel>
+                                <FieldLabel for="description"> Descrição </FieldLabel>
 
                                 <Textarea
                                     id="description"
@@ -111,9 +117,6 @@ const df = new DateFormatter('en-US', {
                                     :aria-invalid="!!errors.length"
                                 >
                                 </Textarea>
-                                <FieldDescription>
-                                    Tell us more about yourself. This will be used to help us personalize your experience.
-                                </FieldDescription>
                                 <FieldError v-if="errors.length" :errors="errors" />
                             </Field>
                         </VeeField>
@@ -121,7 +124,7 @@ const df = new DateFormatter('en-US', {
                         <VeeField v-slot="{ field, errors }" name="status">
                             <Field orientation="responsive" :data-invalid="!!errors.length">
                                 <FieldContent>
-                                    <FieldLabel for="status"> Task Status</FieldLabel>
+                                    <FieldLabel for="status"> Status</FieldLabel>
                                     <FieldError v-if="errors.length" :errors="errors" />
                                 </FieldContent>
                                 <Select :model-value="field.value" @update:model-value="field.onChange" @blur="field.onBlur">
@@ -137,7 +140,15 @@ const df = new DateFormatter('en-US', {
                             </Field>
                         </VeeField>
 
-                        <Popover v-slot="{ close }">
+                        <Button type="submit" :disabled="formContext.isSubmitting.value" class="min-w-25">
+                            <template v-if="formContext.isSubmitting.value">
+                                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                                Salvando...
+                            </template>
+                            <template v-else> Salvar </template>
+                        </Button>
+                    </form>
+                    <Popover v-model:open="popoverOpen">
                             <PopoverTrigger as-child>
                                 <Button
                                     type="button"
@@ -154,19 +165,10 @@ const df = new DateFormatter('en-US', {
                                     :default-placeholder="defaultPlaceholder"
                                     layout="month-and-year"
                                     initial-focus
-                                    @update:model-value="close"
+                                    @update:model-value="handleDateSelect"
                                 />
                             </PopoverContent>
                         </Popover>
-
-                        <Button type="submit" :disabled="formContext.isSubmitting.value" class="min-w-25">
-                            <template v-if="formContext.isSubmitting.value">
-                                <Loader2 class="mr-2 h-4 w-4 animate-spin" />
-                                Salvando...
-                            </template>
-                            <template v-else> Salvar </template>
-                        </Button>
-                    </form>
                 </div>
             </div>
         </div>
