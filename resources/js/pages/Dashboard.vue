@@ -195,7 +195,7 @@ const showAlert = ref(false);
                                         :aria-invalid="!!errors.length"
                                         placeholder="Ex: Tarefa importante"
                                     />
-                                    <FieldError v-if="errors.length" :errors="errors" />
+                                    <FieldError :errors="errors.map((message) => ({ message }))" />
                                 </Field>
                             </VeeField>
 
@@ -212,7 +212,6 @@ const showAlert = ref(false);
                                         :aria-invalid="!!errors.length"
                                     >
                                     </Textarea>
-                                    <FieldError v-if="errors.length" :errors="errors" />
                                 </Field>
                             </VeeField>
 
@@ -241,7 +240,7 @@ const showAlert = ref(false);
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                    <FieldError v-if="errors.length" :errors="errors" />
+                                    <FieldError :errors="errors.map((message) => ({ message }))" />
                                 </Field>
                             </VeeField>
 
@@ -249,7 +248,6 @@ const showAlert = ref(false);
                                 <Field orientation="responsive" :data-invalid="!!errors.length">
                                     <FieldContent>
                                         <FieldLabel for="status"> Status</FieldLabel>
-                                        <FieldError v-if="errors.length" :errors="errors" />
                                     </FieldContent>
                                     <Select :model-value="field.value" @update:model-value="field.onChange" @blur="field.onBlur">
                                         <SelectTrigger id="status" class="min-w-[120px]" :aria-invalid="!!errors.length">
