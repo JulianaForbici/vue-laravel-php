@@ -21,7 +21,7 @@ import { z } from 'zod';
 const todayString = today(getLocalTimeZone()).toString();
 
 const taskSchema = z.object({
-    title: z.string().trim().min(1, 'O título é obrigatório.').max(120, 'O título deve ter no máximo 120 caracteres.'),
+    title: z.string().trim().min(1, { message: 'O título é obrigatório.', }).max(120, { message: 'O título deve ter no máximo 120 caracteres.', }),
     description: z.string().nullable(),
     status: z.enum(['todo', 'doing', 'done']),
     due_date: z.string().nullable().refine((value) => !value || value >= todayString, { message: 'A data de vencimento não pode ser anterior a data atual.' }),
