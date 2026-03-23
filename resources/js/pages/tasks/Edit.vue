@@ -8,21 +8,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { cn } from '@/lib/utils';
-import type { BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
 import type { DateValue } from '@internationalized/date';
 import { DateFormatter, getLocalTimeZone, parseDate, today } from '@internationalized/date';
+import { toTypedSchema } from '@vee-validate/zod';
 import axios from 'axios';
 import { CalendarIcon, Loader2 } from 'lucide-vue-next';
 import { useForm, Field as VeeField } from 'vee-validate';
 import { ref } from 'vue';
+import { z } from 'zod';
 
-// const taskSchema = z.object({
-//     title: z.string().max(120, 'O título é obrigatório e deve contar no máximo 120 caracteres.'),
-//     description: z.string().nullable(),
-//     status: z.enum(['todo', 'doing', 'done']),
-//     due_date: z.string().nullable(),
-// });
+const todayString = today(getLocalTimeZone()).toString();
+
+const taskSchema = z.object({
+    title: z.string().trim().min(1, 'O título é obrigatório.').max(120, 'O título deve ter no máximo 120 caracteres.'),
+    description: z.string().nullable(),
+    status: z.enum(['todo', 'doing', 'done']),
+    due_date: z.string().nullable().refine((value) => !value || value >= todayString, { message: 'A data de vencimento não pode ser anterior a data atual.' }),
+});
 
 type TaskStatus = 'todo' | 'doing' | 'done';
 
@@ -40,11 +43,6 @@ const props = defineProps<{
     task: Task;
 }>();
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
-    { title: 'Editar tarefa', href: `/tasks/${props.task.id}/edit` },
-];
-
 const formContext = useForm({
     initialValues: {
         title: props.task.title ?? '',
@@ -52,7 +50,7 @@ const formContext = useForm({
         status: props.task.status,
         due_date: props.task.due_date ? String(props.task.due_date).slice(0, 10) : '',
     },
-    // validationSchema: toTypedSchema(taskSchema),
+    validationSchema: toTypedSchema(taskSchema),
 });
 
 const onSubmit = formContext.handleSubmit(async (data) => {
@@ -67,6 +65,7 @@ const onSubmit = formContext.handleSubmit(async (data) => {
 const defaultPlaceholder = today(getLocalTimeZone());
 
 const date = ref<DateValue | undefined>(props.task.due_date ? parseDate(String(props.task.due_date).slice(0, 10)) : undefined);
+
 const popoverOpen = ref(false);
 
 const df = new DateFormatter('pt-BR', {
@@ -83,7 +82,7 @@ function handleDateSelect(value: DateValue | undefined) {
 <template>
     <Head title="Editar tarefa"></Head>
 
-    <AppLayout :breadcrumbs="[]">
+    <AppLayout>
         <div class="mx-auto max-w-2xl px-4 py-8">
             <h1 class="text-3xl font-bold">Editar tarefa</h1>
 
@@ -99,7 +98,6 @@ function handleDateSelect(value: DateValue | undefined) {
                                     @update:model-value="field.onChange"
                                     :aria-invalid="!!errors.length"
                                     placeholder="Ex: Tarefa importante"
-                                    autocomplete="username"
                                 />
                                 <FieldError v-if="errors.length" :errors="errors" />
                             </Field>
@@ -125,7 +123,6 @@ function handleDateSelect(value: DateValue | undefined) {
                         <VeeField v-slot="{ errors }" name="due_date">
                             <Field :data-invalid="!!errors.length">
                                 <FieldLabel>Prazo</FieldLabel>
-
                                 <Popover v-model:open="popoverOpen">
                                     <PopoverTrigger as-child>
                                         <Button
@@ -148,6 +145,7 @@ function handleDateSelect(value: DateValue | undefined) {
                                         />
                                     </PopoverContent>
                                 </Popover>
+                                <FieldError v-if="errors.length" :errors="errors" />
                             </Field>
                         </VeeField>
 

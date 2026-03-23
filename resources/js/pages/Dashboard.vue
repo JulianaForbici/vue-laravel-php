@@ -9,14 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { cn } from '@/lib/utils';
-import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import type { DateValue } from '@internationalized/date';
 import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
+import { toTypedSchema } from '@vee-validate/zod';
 import axios from 'axios';
-import { AlertCircleIcon, CalendarIcon, CheckCircle2Icon, Loader2, PopcornIcon } from 'lucide-vue-next';
+import { AlertCircleIcon, CalendarIcon, Loader2 } from 'lucide-vue-next';
 import { useForm, Field as VeeField } from 'vee-validate';
 import { computed, ref } from 'vue';
+import { z } from 'zod';
 
 type TaskStatus = 'todo' | 'doing' | 'done';
 
@@ -34,7 +35,14 @@ const props = defineProps<{
     tasks: Task[];
 }>();
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
+const todayString = today(getLocalTimeZone()).toString();
+
+const taskSchema = z.object({
+    title: z.string().trim().min(1, 'O título é obrigatório.').max(120, 'O título deve ter no máximo 120 caracteres.'),
+    description: z.string().nullable(),
+    status: z.enum(['todo', 'doing', 'done']),
+    due_date: z.string().nullable().refine((value) => !value || value >= todayString, { message: 'A data de vencimento não pode ser anterior a data atual.' }),
+});
 
 const formContext = useForm({
     initialValues: {
@@ -43,32 +51,29 @@ const formContext = useForm({
         status: 'todo' as TaskStatus,
         due_date: '',
     },
-    // validationSchema: toTypedSchema(taskSchema),
+    validationSchema: toTypedSchema(taskSchema),
 });
 
 const onSubmit = formContext.handleSubmit(async (data) => {
-  try {
-    await axios.post('/tasks', data, {
-      headers: {
-        Accept: 'application/json',
-      },
-    })
+    try {
+        await axios.post('/tasks', data, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+        window.location.href = '/dashboard';
+    } catch (error: any) {
+        if (error.response?.status === 422) {
+            const errors = error.response.data.errors ?? {};
 
-    window.location.href = '/dashboard'
-  } catch (error: any) {
-    if (error.response?.status === 422) {
-      const errors = error.response.data.errors ?? {}
-
-      if (errors.title?.[0]) formContext.setFieldError('title', errors.title[0])
-      if (errors.description?.[0]) formContext.setFieldError('description', errors.description[0])
-      if (errors.status?.[0]) formContext.setFieldError('status', errors.status[0])
-      if (errors.due_date?.[0]) formContext.setFieldError('due_date', errors.due_date[0])
-
-      return
+            if (errors.title?.[0]) formContext.setFieldError('title', errors.title[0]);
+            if (errors.description?.[0]) formContext.setFieldError('description', errors.description[0]);
+            if (errors.status?.[0]) formContext.setFieldError('status', errors.status[0]);
+            if (errors.due_date?.[0]) formContext.setFieldError('due_date', errors.due_date[0]);
+            return;
+        }
+        console.error(error);
     }
-
-    console.error(error)
-  }
 });
 
 const destroyTask = async (taskId: number) => {
@@ -110,11 +115,13 @@ const todoCount = computed(() => props.tasks.filter((task) => task.status === 't
 const doingCount = computed(() => props.tasks.filter((task) => task.status === 'doing').length);
 
 const doneCount = computed(() => props.tasks.filter((task) => task.status === 'done').length);
+
+const showAlert = ref(false);
 </script>
 
 <template>
     <Head title="Dashboard"></Head>
-    <AppLayout :breadcrumbs="[]">
+    <AppLayout>
         <div class="mx-auto max-w-4xl space-y-8 px-4 py-8">
             <div class="hero rounded-3xl bg-base-200 shadow-sm">
                 <div class="hero-content py-10 text-center">
@@ -156,18 +163,18 @@ const doneCount = computed(() => props.tasks.filter((task) => task.status === 'd
                 </div>
             </div>
 
-             <Alert variant="destructive">
-      <AlertCircleIcon />
-      <AlertTitle>Unable to process your payment.</AlertTitle>
-      <AlertDescription>
-        <p>Please verify your billing information and try again.</p>
-        <ul class="mt-2 list-inside list-disc space-y-1">
-          <li>Check your card details</li>
-          <li>Ensure sufficient funds</li>
-          <li>Verify billing address</li>
-        </ul>
-      </AlertDescription>
-    </Alert>
+            <Alert v-if="showAlert" variant="destructive" class="mb-4">
+                <AlertCircleIcon />
+                <AlertTitle>Unable to process your payment.</AlertTitle>
+                <AlertDescription>
+                    <p>Please verify your billing information and try again.</p>
+                    <ul class="mt-2 list-inside list-disc space-y-1">
+                        <li>Check your card details</li>
+                        <li>Ensure sufficient funds</li>
+                        <li>Verify billing address</li>
+                    </ul>
+                </AlertDescription>
+            </Alert>
 
             <div class="mx-auto max-w-2xl px-4 py-8">
                 <div class="card mt-8 bg-base-100 shadow">
@@ -207,7 +214,6 @@ const doneCount = computed(() => props.tasks.filter((task) => task.status === 'd
                             <VeeField v-slot="{ errors }" name="due_date">
                                 <Field :data-invalid="!!errors.length">
                                     <FieldLabel>Prazo</FieldLabel>
-
                                     <Popover v-model:open="popoverOpen">
                                         <PopoverTrigger as-child>
                                             <Button
@@ -230,7 +236,7 @@ const doneCount = computed(() => props.tasks.filter((task) => task.status === 'd
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                      <FieldError v-if="errors.length" :errors="errors" />
+                                    <FieldError v-if="errors.length" :errors="errors" />
                                 </Field>
                             </VeeField>
 
