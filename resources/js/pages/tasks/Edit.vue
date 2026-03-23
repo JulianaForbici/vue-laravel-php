@@ -21,10 +21,13 @@ import { z } from 'zod';
 const todayString = today(getLocalTimeZone()).toString();
 
 const taskSchema = z.object({
-    title: z.string().trim().min(1, { message: 'O título é obrigatório.', }).max(120, { message: 'O título deve ter no máximo 120 caracteres.', }),
+    title: z.string().trim().min(1, { message: 'O título é obrigatório.' }).max(120, { message: 'O título deve ter no máximo 120 caracteres.' }),
     description: z.string().nullable(),
     status: z.enum(['todo', 'doing', 'done']),
-    due_date: z.string().nullable().refine((value) => !value || value >= todayString, { message: 'A data de vencimento não pode ser anterior a data atual.' }),
+    due_date: z
+        .string()
+        .nullable()
+        .refine((value) => !value || value >= todayString, { message: 'A data de vencimento não pode ser anterior a data atual.' }),
 });
 
 type TaskStatus = 'todo' | 'doing' | 'done';
@@ -86,8 +89,8 @@ function handleDateSelect(value: DateValue | undefined) {
         <div class="mx-auto max-w-2xl px-4 py-8">
             <h1 class="text-3xl font-bold">Editar tarefa</h1>
 
-            <div class="card mt-8 bg-base-100 shadow">
-                <div class="card-body">
+            <div class="mt-8 rounded-2xl border border-border bg-card shadow-sm">
+                <div class="space-y-6 p-6">
                     <form @submit="onSubmit">
                         <VeeField v-slot="{ field, errors }" name="title">
                             <Field :data-invalid="!!errors.length">
@@ -144,7 +147,7 @@ function handleDateSelect(value: DateValue | undefined) {
                                         />
                                     </PopoverContent>
                                 </Popover>
-                              <FieldError :errors="errors.map((message) => ({ message }))" />
+                                <FieldError :errors="errors.map((message) => ({ message }))" />
                             </Field>
                         </VeeField>
 
