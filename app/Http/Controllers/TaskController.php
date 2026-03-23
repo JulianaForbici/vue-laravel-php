@@ -40,7 +40,7 @@ class TaskController extends Controller
 
         auth()->user()->tasks()->create($validated);
 
-        return to_route('dashboard')->with('success', 'Tarefa criada com sucesso!');
+        return response()->json(['message' => 'Tarefa criada com sucesso!']);
     }
 
     /**
@@ -77,7 +77,7 @@ class TaskController extends Controller
 
         $task->update($validated);
 
-        return to_route('dashboard')->with('success', 'Tarefa atualizada com sucesso!');
+        return response()->json(['message' => 'Tarefa atualizada com sucesso!']);
     }
 
     /**
@@ -89,6 +89,6 @@ class TaskController extends Controller
 
         $task->delete();
 
-        return to_route('dashboard')->with('success', 'Tarefa excluída com sucesso!');
+        return response()->json(['message' => 'Tarefa excluída com sucesso!']);
     }
 }

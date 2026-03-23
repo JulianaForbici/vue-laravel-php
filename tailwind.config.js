@@ -1,4 +1,5 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
+import dayisiui from 'daisyui';
 
 
 /** @type {import('tailwindcss').Config} */
@@ -77,5 +78,5 @@ export default {
     		}
     	}
     },
-    plugins: [require('tailwindcss-animate')],
+    plugins: [require('tailwindcss-animate'), require('daisyui')],
 };

@@ -56,19 +56,20 @@ const formContext = useForm({
 });
 
 const onSubmit = formContext.handleSubmit(async (data) => {
-    await axios.put(`/tasks/${props.task.id}`, data);
-
-    console.log(JSON.stringify(data, null, 2));
+    await axios.put(`/tasks/${props.task.id}`, data, {
+        headers: {
+            Accept: 'application/json',
+        },
+    });
+    window.location.href = '/dashboard';
 });
 
 const defaultPlaceholder = today(getLocalTimeZone());
 
-const date = ref<DateValue | undefined>(
-    props.task.due_date ? parseDate(String(props.task.due_date).slice(0, 10)) : undefined,
-);
-    const popoverOpen = ref(false);
+const date = ref<DateValue | undefined>(props.task.due_date ? parseDate(String(props.task.due_date).slice(0, 10)) : undefined);
+const popoverOpen = ref(false);
 
-const df = new DateFormatter('en-US', {
+const df = new DateFormatter('pt-BR', {
     dateStyle: 'long',
 });
 
@@ -86,7 +87,7 @@ function handleDateSelect(value: DateValue | undefined) {
         <div class="mx-auto max-w-2xl px-4 py-8">
             <h1 class="text-3xl font-bold">Editar tarefa</h1>
 
-            <div class="card bg-base-100 mt-8 shadow">
+            <div class="card mt-8 bg-base-100 shadow">
                 <div class="card-body">
                     <form @submit="onSubmit">
                         <VeeField v-slot="{ field, errors }" name="title">
@@ -97,7 +98,7 @@ function handleDateSelect(value: DateValue | undefined) {
                                     v-model="field.value"
                                     @update:model-value="field.onChange"
                                     :aria-invalid="!!errors.length"
-                                    placeholder="shadcn"
+                                    placeholder="Ex: Tarefa importante"
                                     autocomplete="username"
                                 />
                                 <FieldError v-if="errors.length" :errors="errors" />
@@ -112,12 +113,41 @@ function handleDateSelect(value: DateValue | undefined) {
                                     id="description"
                                     v-model="field.value"
                                     @update:model-value="field.onChange"
-                                    placeholder="I'm a software engineer..."
+                                    placeholder="Ex: Finalizar formulário do projeto Laravel + Vue"
                                     class="min-h-[120px]"
                                     :aria-invalid="!!errors.length"
                                 >
                                 </Textarea>
                                 <FieldError v-if="errors.length" :errors="errors" />
+                            </Field>
+                        </VeeField>
+
+                        <VeeField v-slot="{ errors }" name="due_date">
+                            <Field :data-invalid="!!errors.length">
+                                <FieldLabel>Prazo</FieldLabel>
+
+                                <Popover v-model:open="popoverOpen">
+                                    <PopoverTrigger as-child>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            :class="cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')"
+                                        >
+                                            <CalendarIcon />
+                                            {{ date ? df.format(date.toDate(getLocalTimeZone())) : 'Escolha a data do prazo' }}
+                                        </Button>
+                                    </PopoverTrigger>
+
+                                    <PopoverContent class="w-auto p-0" align="start">
+                                        <Calendar
+                                            v-model="date"
+                                            :default-placeholder="defaultPlaceholder"
+                                            layout="month-and-year"
+                                            initial-focus
+                                            @update:model-value="handleDateSelect"
+                                        />
+                                    </PopoverContent>
+                                </Popover>
                             </Field>
                         </VeeField>
 
@@ -148,27 +178,6 @@ function handleDateSelect(value: DateValue | undefined) {
                             <template v-else> Salvar </template>
                         </Button>
                     </form>
-                    <Popover v-model:open="popoverOpen">
-                            <PopoverTrigger as-child>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    :class="cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')"
-                                >
-                                    <CalendarIcon />
-                                    {{ date ? df.format(date.toDate(getLocalTimeZone())) : 'Pick a date' }}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent class="w-auto p-0" align="start">
-                                <Calendar
-                                    v-model="date"
-                                    :default-placeholder="defaultPlaceholder"
-                                    layout="month-and-year"
-                                    initial-focus
-                                    @update:model-value="handleDateSelect"
-                                />
-                            </PopoverContent>
-                        </Popover>
                 </div>
             </div>
         </div>

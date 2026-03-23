@@ -1,8 +1,22 @@
 <script setup lang="ts">
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Button from '@/components/ui/button/Button.vue';
+import { Calendar } from '@/components/ui/calendar';
+import { Field, FieldContent, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
+import { Head, Link } from '@inertiajs/vue3';
+import type { DateValue } from '@internationalized/date';
+import { DateFormatter, getLocalTimeZone, today } from '@internationalized/date';
+import axios from 'axios';
+import { AlertCircleIcon, CalendarIcon, CheckCircle2Icon, Loader2, PopcornIcon } from 'lucide-vue-next';
+import { useForm, Field as VeeField } from 'vee-validate';
+import { computed, ref } from 'vue';
 
 type TaskStatus = 'todo' | 'doing' | 'done';
 
@@ -20,87 +34,95 @@ const props = defineProps<{
     tasks: Task[];
 }>();
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
+
+const formContext = useForm({
+    initialValues: {
+        title: '',
+        description: '',
+        status: 'todo' as TaskStatus,
+        due_date: '',
     },
-];
-
-const todoCount = computed(() =>
-    props.tasks.filter((task) => task.status === 'todo').length,
-);
-
-const doingCount = computed(() =>
-    props.tasks.filter((task) => task.status === 'doing').length,
-);
-
-const doneCount = computed(() =>
-    props.tasks.filter((task) => task.status === 'done').length,
-);
-
-const form = useForm({
-    title: '',
-    description: '',
-    status: 'todo' as TaskStatus,
-    due_date: '',
+    // validationSchema: toTypedSchema(taskSchema),
 });
 
-function submit() {
-    form.post('/tasks', {
-        preserveScroll: true,
-        onSuccess: () => form.reset(),
+const onSubmit = formContext.handleSubmit(async (data) => {
+  try {
+    await axios.post('/tasks', data, {
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+
+    window.location.href = '/dashboard'
+  } catch (error: any) {
+    if (error.response?.status === 422) {
+      const errors = error.response.data.errors ?? {}
+
+      if (errors.title?.[0]) formContext.setFieldError('title', errors.title[0])
+      if (errors.description?.[0]) formContext.setFieldError('description', errors.description[0])
+      if (errors.status?.[0]) formContext.setFieldError('status', errors.status[0])
+      if (errors.due_date?.[0]) formContext.setFieldError('due_date', errors.due_date[0])
+
+      return
+    }
+
+    console.error(error)
+  }
+});
+
+const destroyTask = async (taskId: number) => {
+    if (!confirm('Você tem certeza que deseja excluir essa tarefa?')) {
+        return;
+    }
+    await axios.delete(`/tasks/${taskId}`, {
+        headers: {
+            Accept: 'application/json',
+        },
     });
+    window.location.href = '/dashboard';
+};
+
+const defaultPlaceholder = today(getLocalTimeZone());
+
+function handleDateSelect(value: DateValue | undefined) {
+    date.value = value;
+    formContext.setFieldValue('due_date', value ? value.toString() : '');
+    popoverOpen.value = false;
 }
 
-function destroyTask(taskId: number) {
-    if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
-        router.delete(`/tasks/${taskId}`, {
-            preserveScroll: true,
-        });
-    }
-}
+const date = ref<DateValue | undefined>(undefined);
+
+const popoverOpen = ref(false);
+
+const df = new DateFormatter('pt-BR', {
+    dateStyle: 'long',
+});
 
 function formatDate(date: string | null) {
     if (!date) return '';
 
     return new Date(date).toLocaleDateString('pt-BR');
-} 
-
-function formatDateTime(date: string) {
-    return new Date(date).toLocaleString('pt-BR', {
-        dateStyle: 'short',
-        timeStyle: 'short',
-    });
 }
 
-function statusLabel(status: TaskStatus) {
-    if (status === 'todo') return 'To do';
-    if (status === 'doing') return 'Doing';
-    return 'Done';
-}
+const todoCount = computed(() => props.tasks.filter((task) => task.status === 'todo').length);
 
-function statusBadgeClass(status: TaskStatus) {
-    if (status === 'todo') return 'badge-warning';
-    if (status === 'doing') return 'badge-info';
-    return 'badge-success';
-}
+const doingCount = computed(() => props.tasks.filter((task) => task.status === 'doing').length);
+
+const doneCount = computed(() => props.tasks.filter((task) => task.status === 'done').length);
 </script>
 
 <template>
-    <Head title="Dashboard" />
-
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="max-w-4xl mx-auto px-4 py-8 space-y-8">
-            <div class="hero bg-base-200 rounded-3xl shadow-sm">
-                <div class="hero-content text-center py-10">
+    <Head title="Dashboard"></Head>
+    <AppLayout :breadcrumbs="[]">
+        <div class="mx-auto max-w-4xl space-y-8 px-4 py-8">
+            <div class="hero rounded-3xl bg-base-200 shadow-sm">
+                <div class="hero-content py-10 text-center">
                     <div class="max-w-2xl">
                         <h1 class="text-4xl font-bold">Organize suas tarefas aqui</h1>
-                        <p class="py-4 text-base-content/70">
-                            Crie, acompanhe e conclua suas tasks.
-                        </p>
+                        <p class="text-base-content/70 py-4">Crie, acompanhe e conclua suas tasks.</p>
 
-                        <div class="stats stats-vertical lg:stats-horizontal shadow bg-base-100 mt-4">
+                        <div class="stats stats-vertical mt-4 bg-base-100 shadow lg:stats-horizontal">
                             <div class="stat">
                                 <div class="stat-title">To do</div>
                                 <div class="stat-value text-warning">{{ todoCount }}</div>
@@ -123,187 +145,174 @@ function statusBadgeClass(status: TaskStatus) {
                 </div>
             </div>
 
-            <div class="card bg-base-100 shadow-xl border border-base-200">
+            <div class="card border border-base-200 bg-base-100 shadow-xl">
                 <div class="card-body">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="mb-4 flex items-center justify-between">
                         <div>
                             <h2 class="card-title text-2xl">Nova tarefa</h2>
-                            <p class="text-sm text-base-content/60">
-                                Adicione uma nova task para acompanhar seu progresso.
-                            </p>
+                            <p class="text-base-content/60 text-sm">Adicione uma nova task para acompanhar seu progresso.</p>
                         </div>
                     </div>
-
-                    <form @submit.prevent="submit" class="space-y-4">
-                        <div class="form-control w-full">
-                            <label class="label">
-                                <span class="label-text font-medium">Título</span>
-                            </label>
-                            <input
-                                v-model="form.title"
-                                type="text"
-                                placeholder="Ex: Finalizar bootcamp do Laravel"
-                                class="input input-bordered w-full"
-                                :class="{ 'input-error': form.errors.title }"
-                                maxlength="120"
-                                required
-                            />
-                            <label v-if="form.errors.title" class="label">
-                                <span class="label-text-alt text-error">{{ form.errors.title }}</span>
-                            </label>
-                        </div>
-
-                        <div class="form-control w-full">
-                            <label class="label">
-                                <span class="label-text font-medium">Descrição</span>
-                            </label>
-                            <textarea
-                                v-model="form.description"
-                                placeholder="Descreva a tarefa..."
-                                class="textarea textarea-bordered w-full resize-none"
-                                :class="{ 'textarea-error': form.errors.description }"
-                                rows="4"
-                            />
-                            <label v-if="form.errors.description" class="label">
-                                <span class="label-text-alt text-error">{{ form.errors.description }}</span>
-                            </label>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="form-control w-full">
-                                <label class="label">
-                                    <span class="label-text font-medium">Status</span>
-                                </label>
-                                <select
-                                    v-model="form.status"
-                                    class="select select-bordered w-full"
-                                    :class="{ 'select-error': form.errors.status }"
-                                >
-                                    <option value="todo">To do</option>
-                                    <option value="doing">Doing</option>
-                                    <option value="done">Done</option>
-                                </select>
-                                <label v-if="form.errors.status" class="label">
-                                    <span class="label-text-alt text-error">{{ form.errors.status }}</span>
-                                </label>
-                            </div>
-
-                            <div class="form-control w-full">
-                                <label class="label">
-                                    <span class="label-text font-medium">Prazo</span>
-                                </label>
-                                <input
-                                    v-model="form.due_date"
-                                    type="date"
-                                    class="input input-bordered w-full"
-                                    :class="{ 'input-error': form.errors.due_date }"
-                                />
-                                <label v-if="form.errors.due_date" class="label">
-                                    <span class="label-text-alt text-error">{{ form.errors.due_date }}</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-end pt-2">
-                            <button type="submit" class="btn btn-primary" :disabled="form.processing">
-                                {{ form.processing ? 'Criando...' : 'Criar tarefa' }}
-                            </button>
-                        </div>
-                    </form>
                 </div>
             </div>
 
+             <Alert variant="destructive">
+      <AlertCircleIcon />
+      <AlertTitle>Unable to process your payment.</AlertTitle>
+      <AlertDescription>
+        <p>Please verify your billing information and try again.</p>
+        <ul class="mt-2 list-inside list-disc space-y-1">
+          <li>Check your card details</li>
+          <li>Ensure sufficient funds</li>
+          <li>Verify billing address</li>
+        </ul>
+      </AlertDescription>
+    </Alert>
+
+            <div class="mx-auto max-w-2xl px-4 py-8">
+                <div class="card mt-8 bg-base-100 shadow">
+                    <div class="card-body">
+                        <form @submit.prevent="onSubmit">
+                            <VeeField v-slot="{ field, errors }" name="title">
+                                <Field :data-invalid="!!errors.length">
+                                    <FieldLabel for="title"> Título </FieldLabel>
+                                    <Input
+                                        id="title"
+                                        v-model="field.value"
+                                        @update:model-value="field.onChange"
+                                        :aria-invalid="!!errors.length"
+                                        placeholder="Ex: Tarefa importante"
+                                    />
+                                    <FieldError v-if="errors.length" :errors="errors" />
+                                </Field>
+                            </VeeField>
+
+                            <VeeField v-slot="{ field, errors }" name="description">
+                                <Field :data-invalid="!!errors.length">
+                                    <FieldLabel for="description"> Descrição </FieldLabel>
+
+                                    <Textarea
+                                        id="description"
+                                        v-model="field.value"
+                                        @update:model-value="field.onChange"
+                                        placeholder="Ex: Finalizar formulário do projeto Laravel + Vue"
+                                        class="min-h-[120px]"
+                                        :aria-invalid="!!errors.length"
+                                    >
+                                    </Textarea>
+                                    <FieldError v-if="errors.length" :errors="errors" />
+                                </Field>
+                            </VeeField>
+
+                            <VeeField v-slot="{ errors }" name="due_date">
+                                <Field :data-invalid="!!errors.length">
+                                    <FieldLabel>Prazo</FieldLabel>
+
+                                    <Popover v-model:open="popoverOpen">
+                                        <PopoverTrigger as-child>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                :class="cn('w-[240px] justify-start text-left font-normal', !date && 'text-muted-foreground')"
+                                            >
+                                                <CalendarIcon />
+                                                {{ date ? df.format(date.toDate(getLocalTimeZone())) : 'Escolha a data do prazo' }}
+                                            </Button>
+                                        </PopoverTrigger>
+
+                                        <PopoverContent class="w-auto p-0" align="start">
+                                            <Calendar
+                                                v-model="date"
+                                                :default-placeholder="defaultPlaceholder"
+                                                layout="month-and-year"
+                                                initial-focus
+                                                @update:model-value="handleDateSelect"
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                      <FieldError v-if="errors.length" :errors="errors" />
+                                </Field>
+                            </VeeField>
+
+                            <VeeField v-slot="{ field, errors }" name="status">
+                                <Field orientation="responsive" :data-invalid="!!errors.length">
+                                    <FieldContent>
+                                        <FieldLabel for="status"> Status</FieldLabel>
+                                        <FieldError v-if="errors.length" :errors="errors" />
+                                    </FieldContent>
+                                    <Select :model-value="field.value" @update:model-value="field.onChange" @blur="field.onBlur">
+                                        <SelectTrigger id="status" class="min-w-[120px]" :aria-invalid="!!errors.length">
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                        <SelectContent position="item-aligned">
+                                            <SelectItem value="todo"> Todo </SelectItem>
+                                            <SelectItem value="doing"> Doing </SelectItem>
+                                            <SelectItem value="done"> Done </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Field>
+                            </VeeField>
+
+                            <Button type="submit" :disabled="formContext.isSubmitting.value" class="min-w-25">
+                                <template v-if="formContext.isSubmitting.value">
+                                    <Loader2 class="mr-2 h-4 w-4 animate-spin" />
+                                    Salvando...
+                                </template>
+                                <template v-else> Salvar </template>
+                            </Button>
+                        </form>
+                    </div>
+                </div>
+            </div>
             <div>
-                <div class="flex items-center justify-between mb-4">
+                <div class="mb-4 flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl font-bold">Minhas tarefas</h2>
-                        <p class="text-sm text-base-content/60">
-                            Gerencie suas atividades e acompanhe o andamento.
-                        </p>
+                        <p class="text-base-content/60 text-sm">Gerencie suas atividades e acompanhe o andamento.</p>
                     </div>
                 </div>
 
                 <div class="space-y-4">
-                    <div
-                        v-for="task in tasks"
-                        :key="task.id"
-                        class="card bg-base-100 shadow border border-base-200"
-                    >
+                    <div v-for="task in tasks" :key="task.id" class="card border border-base-200 bg-base-100 shadow">
                         <div class="card-body">
-                            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                 <div class="flex-1">
-                                    <div class="flex items-center gap-2 flex-wrap">
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="card-title text-lg">{{ task.title }}</h3>
 
-                                        <div
-                                            class="badge badge-outline"
-                                            :class="statusBadgeClass(task.status)"
-                                        >
-                                            {{ statusLabel(task.status) }}
+                                        <div class="badge badge-outline" :class="task.status">
+                                            {{ task.status }}
                                         </div>
                                     </div>
 
-                                    <p
-                                        v-if="task.description"
-                                        class="mt-2 text-base-content/70"
-                                    >
+                                    <p v-if="task.description" class="text-base-content/70 mt-2">
                                         {{ task.description }}
                                     </p>
 
-                                    <div class="mt-4 flex flex-wrap gap-2 text-sm text-base-content/60">
-                                        <div v-if="task.due_date" class="badge badge-ghost">
-                                            Prazo: {{ formatDate(task.due_date) }}
-                                        </div>
+                                    <div class="text-base-content/60 mt-4 flex flex-wrap gap-2 text-sm">
+                                        <div v-if="task.due_date" class="badge badge-ghost">Prazo: {{ formatDate(task.due_date) }}</div>
 
-                                        <div class="badge badge-ghost">
-                                            Criada em {{ formatDateTime(task.created_at) }}
-                                        </div>
+                                        <div class="badge badge-ghost">Criada em {{ formatDate(task.created_at) }}</div>
                                     </div>
                                 </div>
 
                                 <div class="flex items-center gap-2">
-                                    <Link
-                                        :href="`/tasks/${task.id}/edit`"
-                                        class="btn btn-outline btn-sm"
-                                    >
-                                        Editar
-                                    </Link>
+                                    <Link :href="`/tasks/${task.id}/edit`" class="btn btn-outline btn-sm"> Editar </Link>
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-error btn-outline btn-sm"
-                                        @click="destroyTask(task.id)"
-                                    >
-                                        Excluir
-                                    </button>
+                                    <button type="button" class="btn btn-error btn-outline btn-sm" @click="destroyTask(task.id)">Excluir</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div
-                        v-if="tasks.length === 0"
-                        class="hero bg-base-100 rounded-2xl shadow border border-dashed border-base-300 py-12"
-                    >
+                    <div v-if="tasks.length === 0" class="hero rounded-2xl border border-dashed border-base-300 bg-base-100 py-12 shadow">
                         <div class="hero-content text-center">
                             <div>
-                                <svg
-                                    class="mx-auto h-12 w-12 opacity-30"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M9 5h6m-7 4h8m-9 4h10m-11 4h12"
-                                    />
+                                <svg class="mx-auto h-12 w-12 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h6m-7 4h8m-9 4h10m-11 4h12" />
                                 </svg>
                                 <h3 class="mt-4 text-xl font-semibold">Nenhuma tarefa cadastrada</h3>
-                                <p class="mt-2 text-base-content/60">
-                                    Comece criando sua primeira task no formulário acima.
-                                </p>
+                                <p class="text-base-content/60 mt-2">Comece criando sua primeira task no formulário acima.</p>
                             </div>
                         </div>
                     </div>
