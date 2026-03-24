@@ -91,9 +91,6 @@ const onSubmit = formContext.handleSubmit(async (data) => {
 });
 
 const destroyTask = async (taskId: number) => {
-    if (!confirm('Você tem certeza que deseja excluir essa tarefa?')) {
-        return;
-    }
     await axios.delete(`/tasks/${taskId}`, {
         headers: {
             Accept: 'application/json',
@@ -130,7 +127,6 @@ const doingCount = computed(() => props.tasks.filter((task) => task.status === '
 
 const doneCount = computed(() => props.tasks.filter((task) => task.status === 'done').length);
 
-const showAlert = ref(false);
 </script>
 
 <template>
